@@ -1,5 +1,7 @@
-# 默认构建为 `echo ok`，本文件暂不参与安装，保持服务轻量。
-# 启用 USDT 自动链上转账时，请把 Render 的 Build Command 改为：
-#   pip install -r requirements.txt
-# 并确认已设置 SELLER_PRIVATE_KEY / SELLER_USDT_ADDR / M2M_PAYOUT 三个环境变量。
-tronpy
+# 默认构建零依赖：服务仅用 Python 标准库即可运行
+# （argue / MCP / 落地页 / 账本 / 链上验真 全走 urllib，无需任何第三方包）。
+# 这样构建永远不会卡在 cffi 源码编译，保证 Render 一键部署通过。
+#
+# 注意：启用 USDT「自动链上转账」才需要 tronpy，见 requirements-payout.txt，
+# 且必须同时设置 SELLER_PRIVATE_KEY / SELLER_USDT_ADDR / M2M_PAYOUT 三个环境变量，
+# 并把 Render 的 Build Command 改为：pip install -r requirements-payout.txt

@@ -1,0 +1,9 @@
+# 仅「启用 USDT 自动链上转账」时需要。
+# 使用前先在 Render 把 Build Command 改为：pip install -r requirements-payout.txt
+# 并设置 SELLER_PRIVATE_KEY / SELLER_USDT_ADDR / M2M_PAYOUT 三个环境变量。
+#
+# 关键：cffi 必须锁 1.16.0 —— 1.17.x 的源码包在新版 pip 下构建会报
+# "Expected exactly one LICENSE file in cffi distribution, got 0"，导致 Deploy failed。
+# 1.16.0 自带 cp312 预编译 wheel，可绕过该问题。
+cffi==1.16.0
+tronpy==0.0.13
