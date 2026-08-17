@@ -6,8 +6,12 @@ LEDGER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ledger.json")
 PORT = int(os.environ.get("PORT") or os.environ.get("M2M_PORT", "8001"))
 PRICE = float(os.environ.get("M2M_PRICE", "0.05"))
 KEY = os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("OPENAI_API_KEY")
-PAYOUT_TARGET = os.environ.get("M2M_PAYOUT", "")
+PAYOUT_TARGET = os.environ.get("M2M_PAYOUT", "")          # 你的 USDT(TRC20) 收款地址
 PAYOUT_THRESHOLD = float(os.environ.get("M2M_PAYOUT_THRESHOLD", "10.0"))
+SELLER_USDT_ADDR = os.environ.get("SELLER_USDT_ADDR", "")   # 卖方收款钱包(收调用方付的 USDT)
+SELLER_PRIVATE_KEY = os.environ.get("SELLER_PRIVATE_KEY", "")  # 卖方钱包私钥(hex)，填了即自动链上转出
+TRON_API_KEY = os.environ.get("TRON_API_KEY", "")           # 可选：TronGrid API Key，提升节点稳定性
+OWNER_PAYOUT_INITIATED = False
 
 def load():
     try:
@@ -40,6 +44,32 @@ def argue(d):
             pass
     return {"strongest": "若前提不成立，整个计划归零", "risks": ["需求可能是一厢情愿", "启动成本被低估", "竞品可能已先做"], "question": "你凭什么认为只有你能成？", "mode": "mock"}
 
+# ---------- 真钱出口（USDT / TRC20）----------
+def do_payout(L):
+    """账本满阈值后，把累计金额作为真钱转给 M2M_PAYOUT 指定的 USDT 地址。
+    返回 True 表示已发起（paid 或 pending_manual），False 表示未配置目标。"""
+    global OWNER_PAYOUT_INITIATED
+    target = PAYOUT_TARGET
+    amt = round(L["owner_total"], 6)
+    if not target:
+        return False
+    # 模式A：填了卖方私钥 -> 自动链上转账（零干预）
+    if SELLER_PRIVATE_KEY and SELLER_USDT_ADDR:
+        try:
+            import payout_crypto
+            res = payout_crypto.transfer_usdt(SELLER_PRIVATE_KEY, SELLER_USDT_ADDR, target, amt, TRON_API_KEY)
+            txid = (res.get("txid") or (res.get("transaction") or {}).get("txID")) if isinstance(res, dict) else None
+            L.setdefault("payouts", []).append({"status": "paid", "amount": amt, "target": target, "txid": txid})
+            OWNER_PAYOUT_INITIATED = True
+            return True
+        except Exception as e:
+            L.setdefault("payouts", []).append({"status": "crypto_failed", "amount": amt, "target": target, "err": str(e)[:200]})
+    # 模式B：未填私钥 -> 记待提现，供你手动从卖方钱包转出
+    L.setdefault("payouts", []).append({"status": "pending_manual", "amount": amt, "target": target,
+                                         "note": "需在卖方钱包手动提现到该地址（设 SELLER_PRIVATE_KEY 可改自动）"})
+    OWNER_PAYOUT_INITIATED = True
+    return True
+
 class H(BaseHTTPRequestHandler):
     def _send(self, code, obj):
         self.send_response(code); self.send_header("Content-Type", "application/json"); self.end_headers()
@@ -70,7 +100,8 @@ class H(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/status":
             L = load()
-            self._send(200, {"owner_total": L["owner_total"], "calls": len(L["txns"]), "payout_target": PAYOUT_TARGET, "payout_threshold": PAYOUT_THRESHOLD, "mode": "real" if KEY else "mock", "price": PRICE})
+            last = (L.get("payouts") or [{}])[-1]
+            self._send(200, {"owner_total": L["owner_total"], "calls": len(L["txns"]), "payout_target": PAYOUT_TARGET, "payout_threshold": PAYOUT_THRESHOLD, "mode": "real" if KEY else "mock", "price": PRICE, "last_payout": last})
         else:
             self._send_html(self._landing())
     def do_POST(self):
@@ -83,8 +114,8 @@ class H(BaseHTTPRequestHandler):
         L = load(); L["owner_total"] = round(L["owner_total"] + PRICE, 4)
         L["txns"].append({"from": b.get("caller", "agent"), "amt": PRICE})
         if len(L["txns"]) > 500: L["txns"] = L["txns"][-500:]
-        if PAYOUT_TARGET and L["owner_total"] >= PAYOUT_THRESHOLD and not any(p.get("status") == "pending" for p in L.get("payouts", [])):
-            L.setdefault("payouts", []).append({"status": "pending", "amount": L["owner_total"], "target": PAYOUT_TARGET})
+        if PAYOUT_TARGET and L["owner_total"] >= PAYOUT_THRESHOLD and not OWNER_PAYOUT_INITIATED:
+            do_payout(L)
         save(L)
         self._send(200, {"result": res, "charged": PRICE, "owner_total": L["owner_total"]})
     def log_message(self, *a): pass

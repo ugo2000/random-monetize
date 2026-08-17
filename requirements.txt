@@ -1,0 +1,5 @@
+# 默认构建为 `echo ok`，本文件暂不参与安装，保持服务轻量。
+# 启用 USDT 自动链上转账时，请把 Render 的 Build Command 改为：
+#   pip install -r requirements.txt
+# 并确认已设置 SELLER_PRIVATE_KEY / SELLER_USDT_ADDR / M2M_PAYOUT 三个环境变量。
+tronpy
