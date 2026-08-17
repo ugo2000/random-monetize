@@ -11,6 +11,7 @@ PAYOUT_THRESHOLD = float(os.environ.get("M2M_PAYOUT_THRESHOLD", "10.0"))
 SELLER_USDT_ADDR = os.environ.get("SELLER_USDT_ADDR", "")   # 卖方收款钱包(收调用方付的 USDT)
 SELLER_PRIVATE_KEY = os.environ.get("SELLER_PRIVATE_KEY", "")  # 卖方钱包私钥(hex)，填了即自动链上转出
 TRON_API_KEY = os.environ.get("TRON_API_KEY", "")           # 可选：TronGrid API Key，提升节点稳定性
+PAYMENT_MODE = os.environ.get("M2M_PAYMENT_MODE", "trust")   # trust(信任记账) | crypto(先付款后服务)
 OWNER_PAYOUT_INITIATED = False
 
 def load():
@@ -70,17 +71,71 @@ def do_payout(L):
     OWNER_PAYOUT_INITIATED = True
     return True
 
+# ---------- 付款校验（先付款后服务）----------
+USDT_CONTRACT = "TR7NHqjeKQxXPioxH9iAgJJxwBzEWEwZvW"  # USDT TRC20 主网
+
+def verify_payment(tx_hash, expected_usdt, payer_addr=""):
+    """链上核验一笔 USDT(TRC20) 转账是否真实付到卖方钱包且金额足够。
+    走 TronGrid 公开 events 接口，纯标准库，无额外依赖。"""
+    url = ("https://api.trongrid.io/v1/contracts/" + USDT_CONTRACT +
+           "/events?transaction_id=" + tx_hash + "&event_name=Transfer&only_confirmed=true")
+    if TRON_API_KEY:
+        url += "&api_key=" + TRON_API_KEY
+    try:
+        r = urllib.request.urlopen(url, timeout=15)
+        data = json.loads(r.read())
+    except Exception as e:
+        return {"ok": False, "reason": "链上查询失败: " + str(e)[:120]}
+    for ev in (data.get("data") or []):
+        res = ev.get("result") or {}
+        to = res.get("to", "")
+        val = res.get("value", "0")
+        frm = res.get("from", "")
+        if to == SELLER_USDT_ADDR:
+            try:
+                amt = int(val) / 1_000_000
+            except Exception:
+                amt = 0
+            if amt + 1e-9 >= expected_usdt:
+                if payer_addr and frm != payer_addr:
+                    return {"ok": False, "reason": "付款方与 caller 不匹配"}
+                return {"ok": True, "amount": amt, "from": frm}
+    return {"ok": False, "reason": "未找到付到本钱包的已确认转账"}
+
 class H(BaseHTTPRequestHandler):
     def _send(self, code, obj):
         self.send_response(code); self.send_header("Content-Type", "application/json"); self.end_headers()
         self.wfile.write(json.dumps(obj, ensure_ascii=False).encode("utf-8"))
+    def _handle_paid(self, b, d):
+        if not SELLER_USDT_ADDR:
+            self._send(500, {"error": "config", "hint": "crypto 模式需设 SELLER_USDT_ADDR（卖方收款钱包）"}); return
+        tx = b.get("tx_hash") or b.get("payment_tx")
+        if not tx:
+            self._send(402, {"error": "payment_required", "hint": "先向卖方钱包转入 " + str(PRICE) + " USDT(TRC20)，再在 body 带 tx_hash",
+                             "seller": SELLER_USDT_ADDR, "price_usdt": PRICE}); return
+        L = load()
+        if tx in L.get("paid_txns", []):
+            self._send(402, {"error": "replay", "hint": "该交易哈希已被使用过"}); return
+        v = verify_payment(tx, PRICE)
+        if not v["ok"]:
+            self._send(402, {"error": "payment_invalid", "reason": v["reason"]}); return
+        amt = v["amount"]
+        res = argue(d)
+        L["owner_total"] = round(L["owner_total"] + amt, 6)
+        L.setdefault("paid_txns", []).append(tx)
+        L["txns"].append({"from": b.get("caller", v.get("from", "agent")), "amt": amt, "tx": tx[:14] + "..."})
+        if len(L["txns"]) > 500: L["txns"] = L["txns"][-500:]
+        if PAYOUT_TARGET and L["owner_total"] >= PAYOUT_THRESHOLD and not OWNER_PAYOUT_INITIATED:
+            do_payout(L)
+        save(L)
+        self._send(200, {"result": res, "charged": amt, "owner_total": L["owner_total"]})
     def _send_html(self, html):
         self.send_response(200); self.send_header("Content-Type", "text/html; charset=utf-8"); self.end_headers()
         self.wfile.write(html.encode("utf-8"))
     def _landing(self):
         L = load()
         mode = "real" if KEY else "mock"
-        return """<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
+        html = """<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>决策质检 M2M API · 已上线</title>
 <style>body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:#0f1115;color:#e8eaed;margin:0;padding:36px 20px;line-height:1.6}.wrap{max-width:720px;margin:0 auto}.badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:13px;background:#16351f;color:#7ee2a8;border:1px solid #2c6b43}.h{font-size:26px;margin:14px 0 4px}.sub{color:#9aa0a6;margin:0 0 24px}.card{background:#171a21;border:1px solid #262b34;border-radius:12px;padding:18px 20px;margin:14px 0}.k{color:#9aa0a6;font-size:13px;margin-bottom:6px}.v{font-size:22px;font-weight:600;color:#7ee2a8}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#0c0e12;padding:12px 14px;border-radius:8px;color:#cfe3ff;font-size:13px;overflow-x:auto;white-space:pre}code{background:#0c0e12;padding:1px 6px;border-radius:4px;color:#cfe3ff}a{color:#7ee2a8}</style></head>
@@ -93,15 +148,23 @@ class H(BaseHTTPRequestHandler):
   -H "Content-Type: application/json" \\
   -d '{"decision":"要不要辞掉工作做一人公司","caller":"your-agent-id"}'</div></div>
 <div class="card"><div class="k">返回示例</div><div class="mono">{"result":{"strongest":"...","risks":[...],"question":"..."},"charged":__PRICE__,"owner_total":__TOTAL__}</div></div>
+<div class="card"><div class="k">付款方式</div><div class="mono">__PAYMENT_INFO__</div></div>
 <p class="sub" style="margin-top:24px">本服务由自治 M2M 变现体提供 · 账本每 5 秒自动刷新</p>
 </div>
 <script>setInterval(()=>fetch('/status').then(r=>r.json()).then(s=>{document.querySelector('.v').textContent='¥ '+s.owner_total.toFixed(2);const c=document.querySelectorAll('.card')[0].querySelectorAll('.k')[1];if(c)c.textContent='调用次数 '+s.calls+' · 单价 ¥__PRICE__ · 结算阈值 ¥__THRESH__';}).catch(()=>{}),5000);</script>
-</body></html>""".replace("__MODE__", mode).replace("__TOTAL__", str(round(L["owner_total"],2))).replace("__CALLS__", str(len(L["txns"]))).replace("__PRICE__", str(PRICE)).replace("__THRESH__", str(PAYOUT_THRESHOLD)).replace("__HOST__", self.headers.get("Host", "random-monetize.onrender.com"))
+</body></html>"""
+        if PAYMENT_MODE == "crypto" and SELLER_USDT_ADDR:
+            payment_info = "先向 "+SELLER_USDT_ADDR+" 转入 "+str(PRICE)+" USDT(TRC20)，再 POST 带 tx_hash 才服务（链上验真）"
+        elif PAYMENT_MODE == "crypto":
+            payment_info = "crypto 模式：需先设 SELLER_USDT_ADDR，调用方先付 USDT 再带 tx_hash"
+        else:
+            payment_info = "信任记账（调用即记，虚拟信用；非真实收款）"
+        return html.replace("__MODE__", mode).replace("__TOTAL__", str(round(L["owner_total"],2))).replace("__CALLS__", str(len(L["txns"]))).replace("__PRICE__", str(PRICE)).replace("__THRESH__", str(PAYOUT_THRESHOLD)).replace("__HOST__", self.headers.get("Host", "random-monetize.onrender.com")).replace("__PAYMENT_INFO__", payment_info)
     def do_GET(self):
         if self.path == "/status":
             L = load()
             last = (L.get("payouts") or [{}])[-1]
-            self._send(200, {"owner_total": L["owner_total"], "calls": len(L["txns"]), "payout_target": PAYOUT_TARGET, "payout_threshold": PAYOUT_THRESHOLD, "mode": "real" if KEY else "mock", "price": PRICE, "last_payout": last})
+            self._send(200, {"owner_total": L["owner_total"], "calls": len(L["txns"]), "payout_target": PAYOUT_TARGET, "payout_threshold": PAYOUT_THRESHOLD, "mode": "real" if KEY else "mock", "price": PRICE, "last_payout": last, "payment_mode": PAYMENT_MODE, "seller_addr": SELLER_USDT_ADDR})
         else:
             self._send_html(self._landing())
     def do_POST(self):
@@ -110,6 +173,8 @@ class H(BaseHTTPRequestHandler):
         n = int(self.headers.get("Content-Length", "0"))
         b = json.loads(self.rfile.read(n) or b"{}")
         d = b.get("decision", "")
+        if PAYMENT_MODE == "crypto":
+            self._handle_paid(b, d); return
         res = argue(d)
         L = load(); L["owner_total"] = round(L["owner_total"] + PRICE, 4)
         L["txns"].append({"from": b.get("caller", "agent"), "amt": PRICE})

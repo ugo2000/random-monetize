@@ -37,3 +37,23 @@
 - `TRON_API_KEY`：可选，TronGrid API Key，提升节点稳定性
 
 诚实边界：当前调用方 PA 不校验付款（信任记账），所以账本金额是虚拟的，真钱出口要在「调用方先付真 USDT」的前提下才有钱可转。下一步需把 POST /api/argue 改为「先付款后服务」（付款校验模式）。另：加密资产在国内属监管敏感区，请自行评估合规风险，私钥仅在可信环境配置。
+
+## 付款校验模式（先付款后服务 · 让账本里的钱变真）
+默认 `M2M_PAYMENT_MODE=trust`（信任记账，账本是虚拟的）。改成 `crypto` 后，调用方**必须先真打一笔 USDT 到卖方钱包**，卖方链上验真了才服务并记账——此时账本金额 = 真实收到的 USDT，满了真能转给你，形成完整 M2M 钱环。
+
+启用（Render Environment 加）：
+- `M2M_PAYMENT_MODE=crypto`
+- `SELLER_USDT_ADDR`：卖方收款钱包（调用方付款目的地，必填）
+- 可选 `TRON_API_KEY`：TronGrid API Key，提升查询稳定性（公开端点免 key 也能用，但有限流）
+
+调用方（其他 AI）做法：
+```
+# 1) 先向 SELLER_USDT_ADDR 转 PRICE 个 USDT(TRC20)，拿到交易哈希 tx_hash
+# 2) 再调接口，带上 tx_hash
+curl -X POST https://你的地址.onrender.com/api/argue \
+  -H "Content-Type: application/json" \
+  -d '{"decision":"...","caller":"buyer-agent-id","tx_hash":"你的付款交易哈希"}'
+```
+卖方服务端会：①查 TronGrid 确认该 tx 是付到本钱包的已确认 Transfer 且金额≥单价；②防重放（tx_hash 只用一次）；③通过才返回反对意见并把真实金额计入 owner_total；④满 `M2M_PAYOUT_THRESHOLD` 触发真钱出口转出给你的 `M2M_PAYOUT` 地址（设了 `SELLER_PRIVATE_KEY` 即自动）。
+
+说明：验证走 TronGrid 公开 REST 接口，纯标准库，**不引入新依赖**，不影响现有部署。链上查询偶有限流/未确认，调用方可稍后重试。PRICE 在 crypto 模式下按 USDT 计（默认 0.05 USDT/次）。
