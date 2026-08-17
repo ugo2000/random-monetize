@@ -2,6 +2,7 @@ services:
   - type: web
     name: m2m-seller
     runtime: python
+    pythonVersion: "3.12"
     plan: free
     buildCommand: "echo ok"
     startCommand: "python seller.py"
