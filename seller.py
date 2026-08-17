@@ -79,13 +79,20 @@ def verify_payment(tx_hash, expected_usdt, payer_addr=""):
     走 TronGrid 公开 events 接口，纯标准库，无额外依赖。"""
     url = ("https://api.trongrid.io/v1/contracts/" + USDT_CONTRACT +
            "/events?transaction_id=" + tx_hash + "&event_name=Transfer&only_confirmed=true")
-    if TRON_API_KEY:
-        url += "&api_key=" + TRON_API_KEY
-    try:
-        r = urllib.request.urlopen(url, timeout=15)
-        data = json.loads(r.read())
-    except Exception as e:
-        return {"ok": False, "reason": "链上查询失败: " + str(e)[:120]}
+    data = None
+    last_err = ""
+    for _ in range(2):  # 偶发限流重试一次
+        try:
+            req = urllib.request.Request(url)
+            if TRON_API_KEY:
+                req.add_header("TRON-PRO-API-KEY", TRON_API_KEY)  # TronGrid 官方 header
+            r = urllib.request.urlopen(req, timeout=15)
+            data = json.loads(r.read())
+            break
+        except Exception as e:
+            last_err = str(e)[:120]
+    if data is None:
+        return {"ok": False, "reason": "链上查询失败: " + last_err}
     for ev in (data.get("data") or []):
         res = ev.get("result") or {}
         to = res.get("to", "")
