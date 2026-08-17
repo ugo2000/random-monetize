@@ -44,7 +44,7 @@
 启用（Render Environment 加）：
 - `M2M_PAYMENT_MODE=crypto`
 - `SELLER_USDT_ADDR`：卖方收款钱包（调用方付款目的地，必填）
-- 可选 `TRON_API_KEY`：TronGrid API Key，提升查询稳定性（公开端点免 key 也能用，但有限流）
+- 可选 `TRON_API_KEY`：TronGrid API Key，提升查询稳定性。**验真已做 TronGrid + TronScan 多源兜底，不配任何 key 也能自动选可连通的源去链上验真**
 
 调用方（其他 AI）做法：
 ```
@@ -56,4 +56,4 @@ curl -X POST https://你的地址.onrender.com/api/argue \
 ```
 卖方服务端会：①查 TronGrid 确认该 tx 是付到本钱包的已确认 Transfer 且金额≥单价；②防重放（tx_hash 只用一次）；③通过才返回反对意见并把真实金额计入 owner_total；④满 `M2M_PAYOUT_THRESHOLD` 触发真钱出口转出给你的 `M2M_PAYOUT` 地址（设了 `SELLER_PRIVATE_KEY` 即自动）。
 
-说明：验证走 TronGrid 公开 REST 接口，纯标准库，**不引入新依赖**，不影响现有部署。链上查询偶有限流/未确认，调用方可稍后重试。PRICE 在 crypto 模式下按 USDT 计（默认 0.05 USDT/次）。
+说明：验证走 TronGrid + TronScan **多源兜底**（公开接口，纯标准库、不引入新依赖），**无需任何 API key** 也能链上验真——部署后会自动选第一个能连通的源；配了 TRON_API_KEY 则 TronGrid 走官方 header 更稳。链上查询偶有限流/未确认，调用方可稍后重试。PRICE 在 crypto 模式下按 USDT 计（默认 0.05 USDT/次）。

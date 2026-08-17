@@ -76,38 +76,59 @@ USDT_CONTRACT = "TR7NHqjeKQxXPioxH9iAgJJxwBzEWEwZvW"  # USDT TRC20 主网
 
 def verify_payment(tx_hash, expected_usdt, payer_addr=""):
     """链上核验一笔 USDT(TRC20) 转账是否真实付到卖方钱包且金额足够。
-    走 TronGrid 公开 events 接口，纯标准库，无额外依赖。"""
-    url = ("https://api.trongrid.io/v1/contracts/" + USDT_CONTRACT +
-           "/events?transaction_id=" + tx_hash + "&event_name=Transfer&only_confirmed=true")
-    data = None
+    多源兜底：TronGrid（配了 TRON_API_KEY 走官方 header，否则走公开接口）+ TronScan 公开接口。
+    纯标准库，无额外依赖。部署端自动选第一个能连通的源。"""
+    if not SELLER_USDT_ADDR:
+        return {"ok": False, "reason": "未配置卖方收款地址"}
+    tg_headers = {"TRON-PRO-API-KEY": TRON_API_KEY} if TRON_API_KEY else {}
+    providers = [
+        ("trongrid",
+         "https://api.trongrid.io/v1/contracts/" + USDT_CONTRACT +
+         "/events?transaction_id=" + tx_hash + "&event_name=Transfer&only_confirmed=true",
+         tg_headers),
+        ("tronscan",
+         "https://apilist.tronscan.org/api/token_trc20/transfers?contract=" + USDT_CONTRACT +
+         "&transactionHash=" + tx_hash + "&confirm=1",
+         {"User-Agent": "Mozilla/5.0"}),
+    ]
     last_err = ""
-    for _ in range(2):  # 偶发限流重试一次
-        try:
-            req = urllib.request.Request(url)
-            if TRON_API_KEY:
-                req.add_header("TRON-PRO-API-KEY", TRON_API_KEY)  # TronGrid 官方 header
-            r = urllib.request.urlopen(req, timeout=15)
-            data = json.loads(r.read())
-            break
-        except Exception as e:
-            last_err = str(e)[:120]
-    if data is None:
-        return {"ok": False, "reason": "链上查询失败: " + last_err}
-    for ev in (data.get("data") or []):
-        res = ev.get("result") or {}
-        to = res.get("to", "")
-        val = res.get("value", "0")
-        frm = res.get("from", "")
-        if to == SELLER_USDT_ADDR:
+    for name, url, headers in providers:
+        for _ in range(2):  # 单源偶发限流重试一次
             try:
-                amt = int(val) / 1_000_000
+                req = urllib.request.Request(url)
+                for k, v in headers.items():
+                    req.add_header(k, v)
+                r = urllib.request.urlopen(req, timeout=15)
+                data = json.loads(r.read())
+                break
             except Exception:
-                amt = 0
-            if amt + 1e-9 >= expected_usdt:
-                if payer_addr and frm != payer_addr:
-                    return {"ok": False, "reason": "付款方与 caller 不匹配"}
-                return {"ok": True, "amount": amt, "from": frm}
-    return {"ok": False, "reason": "未找到付到本钱包的已确认转账"}
+                pass
+        else:
+            last_err = name + " 查询失败"
+            continue
+        # 解析：trongrid 在 data[].result；tronscan 在 data[] 顶层
+        rows = data.get("data") or []
+        for ev in rows:
+            res = ev.get("result") or ev
+            to = res.get("to", "")
+            val = res.get("value", "0")
+            frm = res.get("from", "")
+            if to == SELLER_USDT_ADDR:
+                try:
+                    amt = int(str(val)) / 1_000_000
+                except Exception:
+                    try:
+                        amt = float(str(val))
+                    except Exception:
+                        amt = 0
+                if amt + 1e-9 >= expected_usdt:
+                    if payer_addr and frm != payer_addr:
+                        return {"ok": False, "reason": "付款方与 caller 不匹配"}
+                    return {"ok": True, "amount": amt, "from": frm, "via": name}
+        # 该源无匹配行；tronscan 用 transactionHash 精确过滤且有行，说明确实没付到本钱包
+        if name == "tronscan" and rows:
+            return {"ok": False, "reason": "未找到付到本钱包的已确认转账"}
+    return {"ok": False, "reason": "全部源查询失败: " + last_err}
 
 class H(BaseHTTPRequestHandler):
     def _send(self, code, obj):
