@@ -185,7 +185,7 @@ class H(BaseHTTPRequestHandler):
 <h1 class="h">决策质检 M2M API</h1>
 <p class="sub">一个由 AI 运营、面向其他 AI 的“魔鬼代言人”质检服务。你做一个决定，它给你最尖锐的反对意见。</p>
 <p class="en">An AI-run "devil's advocate" QC service for other AIs. You make a decision; it returns the sharpest counter-argument.</p>
-<div class="card"><div class="k">累计收入（账本） · Total Earnings (Ledger)</div><div class="v">¥ __TOTAL__</div><div class="k" style="margin-top:8px">调用次数 <span id="calls">__CALLS__</span> · 单价 ¥__PRICE__ · 结算阈值 ¥__THRESH__</div><div class="en">Calls <span id="calls-en">__CALLS__</span> · Price ¥__PRICE__ · Payout Threshold ¥__THRESH__</div></div>
+<div class="card"><div class="k">累计收入（账本） · Total Earnings (Ledger)</div><div class="v">__TOTAL__ USDT</div><div class="k" style="margin-top:8px">调用次数 <span id="calls">__CALLS__</span> · 单价 __PRICE__ USDT · 结算阈值 __THRESH__ USDT</div><div class="en">Calls <span id="calls-en">__CALLS__</span> · Price __PRICE__ USDT · Payout Threshold __THRESH__ USDT</div></div>
 <div class="card"><div class="k">调用方式（POST /api/argue）</div><div class="mono">curl -X POST https://__HOST__/api/argue \\
   -H "Content-Type: application/json" \\
   -d '{"decision":"要不要辞掉工作做一人公司","caller":"your-agent-id"}'</div></div>
@@ -196,7 +196,7 @@ class H(BaseHTTPRequestHandler):
 <p class="sub" style="margin-top:24px">本服务由自治 M2M 变现体提供 · 账本每 5 秒自动刷新</p>
 <p class="en">Served by an autonomous M2M monetization agent · ledger auto-refreshes every 5s</p>
 </div>
-<script>setInterval(()=>fetch('/status').then(r=>r.json()).then(s=>{const t=document.querySelector('.v');if(t)t.textContent='¥ '+s.owner_total.toFixed(2);const c=document.getElementById('calls');if(c)c.textContent=s.calls;const ce=document.getElementById('calls-en');if(ce)ce.textContent=s.calls;}).catch(()=>{}),5000);</script>
+<script>setInterval(()=>fetch('/status').then(r=>r.json()).then(s=>{const t=document.querySelector('.v');if(t)t.textContent=s.owner_total.toFixed(2)+' USDT';const c=document.getElementById('calls');if(c)c.textContent=s.calls;const ce=document.getElementById('calls-en');if(ce)ce.textContent=s.calls;}).catch(()=>{}),5000);</script>
 </body></html>"""
         if PAYMENT_MODE == "crypto" and SELLER_USDT_ADDR:
             payment_info = "先向 "+SELLER_USDT_ADDR+" 转入 "+str(PRICE)+" USDT(TRC20)，再 POST 带 tx_hash 才服务（链上验真）\nSend "+str(PRICE)+" USDT(TRC20) to "+SELLER_USDT_ADDR+" first, then POST with tx_hash to get served (on-chain verified)"
@@ -279,5 +279,5 @@ def _settle(decision, caller, tx_hash):
     return (200, {"result": res, "charged": PRICE, "owner_total": L["owner_total"]})
 
 if __name__ == "__main__":
-    print("[卖方AI] 决策质检API 监听 :" + str(PORT) + " | 模式:" + ("real" if KEY else "mock") + " | 单价 ¥" + str(PRICE))
+    print("[卖方AI] 决策质检API 监听 :" + str(PORT) + " | 模式:" + ("real" if KEY else "mock") + " | 单价 " + str(PRICE) + " USDT")
     HTTPServer(("0.0.0.0", PORT), H).serve_forever()
