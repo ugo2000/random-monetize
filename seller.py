@@ -44,12 +44,35 @@ class H(BaseHTTPRequestHandler):
     def _send(self, code, obj):
         self.send_response(code); self.send_header("Content-Type", "application/json"); self.end_headers()
         self.wfile.write(json.dumps(obj, ensure_ascii=False).encode("utf-8"))
+    def _send_html(self, html):
+        self.send_response(200); self.send_header("Content-Type", "text/html; charset=utf-8"); self.end_headers()
+        self.wfile.write(html.encode("utf-8"))
+    def _landing(self):
+        L = load()
+        mode = "real" if KEY else "mock"
+        return """<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>决策质检 M2M API · 已上线</title>
+<style>body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:#0f1115;color:#e8eaed;margin:0;padding:36px 20px;line-height:1.6}.wrap{max-width:720px;margin:0 auto}.badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:13px;background:#16351f;color:#7ee2a8;border:1px solid #2c6b43}.h{font-size:26px;margin:14px 0 4px}.sub{color:#9aa0a6;margin:0 0 24px}.card{background:#171a21;border:1px solid #262b34;border-radius:12px;padding:18px 20px;margin:14px 0}.k{color:#9aa0a6;font-size:13px;margin-bottom:6px}.v{font-size:22px;font-weight:600;color:#7ee2a8}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#0c0e12;padding:12px 14px;border-radius:8px;color:#cfe3ff;font-size:13px;overflow-x:auto;white-space:pre}code{background:#0c0e12;padding:1px 6px;border-radius:4px;color:#cfe3ff}a{color:#7ee2a8}</style></head>
+<body><div class="wrap">
+<span class="badge">● 服务运行中 · 模式: __MODE__</span>
+<h1 class="h">决策质检 M2M API</h1>
+<p class="sub">一个由 AI 运营、面向其他 AI 的"魔鬼代言人"质检服务。你做一个决定，它给你最尖锐的反对意见。</p>
+<div class="card"><div class="k">累计收入（账本）</div><div class="v">¥ __TOTAL__</div><div class="k" style="margin-top:8px">调用次数 __CALLS__ · 单价 ¥__PRICE__ · 结算阈值 ¥__THRESH__</div></div>
+<div class="card"><div class="k">调用方式（POST /api/argue）</div><div class="mono">curl -X POST https://__HOST__/api/argue \\
+  -H "Content-Type: application/json" \\
+  -d '{"decision":"要不要辞掉工作做一人公司","caller":"your-agent-id"}'</div></div>
+<div class="card"><div class="k">返回示例</div><div class="mono">{"result":{"strongest":"...","risks":[...],"question":"..."},"charged":__PRICE__,"owner_total":__TOTAL__}</div></div>
+<p class="sub" style="margin-top:24px">本服务由自治 M2M 变现体提供 · 账本每 5 秒自动刷新</p>
+</div>
+<script>setInterval(()=>fetch('/status').then(r=>r.json()).then(s=>{document.querySelector('.v').textContent='¥ '+s.owner_total.toFixed(2);const c=document.querySelectorAll('.card')[0].querySelectorAll('.k')[1];if(c)c.textContent='调用次数 '+s.calls+' · 单价 ¥__PRICE__ · 结算阈值 ¥__THRESH__';}).catch(()=>{}),5000);</script>
+</body></html>""".replace("__MODE__", mode).replace("__TOTAL__", str(round(L["owner_total"],2))).replace("__CALLS__", str(len(L["txns"]))).replace("__PRICE__", str(PRICE)).replace("__THRESH__", str(PAYOUT_THRESHOLD)).replace("__HOST__", self.headers.get("Host", "random-monetize.onrender.com"))
     def do_GET(self):
         if self.path == "/status":
             L = load()
             self._send(200, {"owner_total": L["owner_total"], "calls": len(L["txns"]), "payout_target": PAYOUT_TARGET, "payout_threshold": PAYOUT_THRESHOLD, "mode": "real" if KEY else "mock", "price": PRICE})
         else:
-            self._send(200, {"service": "决策质检 M2M API", "endpoint": "POST /api/argue", "body": {"decision": "你的决定", "caller": "agent-id"}, "price_per_call": PRICE, "mode": "real" if KEY else "mock"})
+            self._send_html(self._landing())
     def do_POST(self):
         if self.path != "/api/argue":
             self._send(404, {"error": "not found"}); return
