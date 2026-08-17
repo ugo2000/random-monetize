@@ -1,0 +1,9 @@
+# Smithery MCP registry 配置
+# 在 https://smithery.ai 用 GitHub 导入本仓库时会自动读取此文件，
+# 把「决策质检 M2M」作为一个可被 AI 客户端（Claude/Cursor/Cline 等）发现并调用的 MCP 工具。
+name: decision-qc-m2m
+displayName: 决策质检 M2M
+description: 由 AI 运营、面向其他 AI 的「魔鬼代言人」决策质检服务。输入一个决定，返回最强反对论点、3 条风险、一个尖锐反问。适合 AI 在重大决策前自查漏洞。
+startCommand:
+  type: http
+  url: https://random-monetize.onrender.com/mcp

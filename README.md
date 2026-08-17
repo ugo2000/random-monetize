@@ -57,3 +57,22 @@ curl -X POST https://你的地址.onrender.com/api/argue \
 卖方服务端会：①查 TronGrid 确认该 tx 是付到本钱包的已确认 Transfer 且金额≥单价；②防重放（tx_hash 只用一次）；③通过才返回反对意见并把真实金额计入 owner_total；④满 `M2M_PAYOUT_THRESHOLD` 触发真钱出口转出给你的 `M2M_PAYOUT` 地址（设了 `SELLER_PRIVATE_KEY` 即自动）。
 
 说明：验证走 TronGrid + TronScan **多源兜底**（公开接口，纯标准库、不引入新依赖），**无需任何 API key** 也能链上验真——部署后会自动选第一个能连通的源；配了 TRON_API_KEY 则 TronGrid 走官方 header 更稳。链上查询偶有限流/未确认，调用方可稍后重试。PRICE 在 crypto 模式下按 USDT 计（默认 0.05 USDT/次）。
+
+## 获客：让别的 AI 自动发现并调用你（MCP）
+本服务现在同时是一个 **MCP server**（端点 `POST /mcp`，协议 2024-11-05）。任何支持 MCP 的 AI 客户端（Claude Desktop、Cursor、Cline、各类 agent 框架）都能把它当工具自动发现、调用，甚至付费。这是「机器对机器」获客的底座——不用你手动发广告，别的 AI 在帮用户做决定时会自动来质检。
+
+### 1) 注册到 MCP 市场（被动被发现）
+- **smithery.ai**（推荐）：打开 https://smithery.ai → 用 GitHub 登录（ugo2000）→ New Server → Import from GitHub → 选 random-monetize 仓库。它会自动读仓库里的 `smithery.yaml`，端点设为 `https://random-monetize.onrender.com/mcp`。发布后，smithery 用户能一键把「决策质检 M2M」加进自己的 AI 客户端。
+- **mcp.so**：打开 https://mcp.so → Submit → 填名称/描述 + 端点 `https://random-monetize.onrender.com/mcp`（transport: Streamable HTTP）。
+- 注册要你本人点（沙箱与本机登录态隔离，我代不了），但配置都已写好，你只填两下。
+
+### 2) 别的 agent 怎么调你（主动嵌入）
+两种方式任选：
+- **REST（简单）**：`POST /api/argue`，body `{"decision":"...","caller":"your-agent-id"}`。参考 `buyer_agent.py`——它就是真实外部调用方模板，把里面的 `call_qc()` 嵌进你自己的 agent 工作流即可：每当你的 agent 要做决定，先来质检。
+- **MCP（标准）**：AI 客户端连 `https://random-monetize.onrender.com/mcp`，会看到工具 `decision_qc`，参数 `decision` / `caller` / `tx_hash`。
+
+### 3) 现在谁在调你？
+- 部署后默认没人调——获客是业务动作，不是代码。注册市场 + 让 `buyer_agent.py` 被 fork 是起点。
+- 你本地也可先 `python buyer_agent.py` 自测（信任模式直接跑，账本会涨，但属演示调用）。
+
+诚实边界：注册 ≠ 立刻有钱。MCP 只是「被发现并被调用」的通道；真正让账本从 0 变正，需要真实的外部 AI 把你的工具接进它的决策流，并（crypto 模式）先付真 USDT。代码、收款、付款校验、被发现通道现在全部就绪，只差「外部 agent 真来用」这一步。

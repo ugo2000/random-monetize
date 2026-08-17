@@ -134,29 +134,40 @@ class H(BaseHTTPRequestHandler):
     def _send(self, code, obj):
         self.send_response(code); self.send_header("Content-Type", "application/json"); self.end_headers()
         self.wfile.write(json.dumps(obj, ensure_ascii=False).encode("utf-8"))
-    def _handle_paid(self, b, d):
-        if not SELLER_USDT_ADDR:
-            self._send(500, {"error": "config", "hint": "crypto 模式需设 SELLER_USDT_ADDR（卖方收款钱包）"}); return
-        tx = b.get("tx_hash") or b.get("payment_tx")
-        if not tx:
-            self._send(402, {"error": "payment_required", "hint": "先向卖方钱包转入 " + str(PRICE) + " USDT(TRC20)，再在 body 带 tx_hash",
-                             "seller": SELLER_USDT_ADDR, "price_usdt": PRICE}); return
-        L = load()
-        if tx in L.get("paid_txns", []):
-            self._send(402, {"error": "replay", "hint": "该交易哈希已被使用过"}); return
-        v = verify_payment(tx, PRICE)
-        if not v["ok"]:
-            self._send(402, {"error": "payment_invalid", "reason": v["reason"]}); return
-        amt = v["amount"]
-        res = argue(d)
-        L["owner_total"] = round(L["owner_total"] + amt, 6)
-        L.setdefault("paid_txns", []).append(tx)
-        L["txns"].append({"from": b.get("caller", v.get("from", "agent")), "amt": amt, "tx": tx[:14] + "..."})
-        if len(L["txns"]) > 500: L["txns"] = L["txns"][-500:]
-        if PAYOUT_TARGET and L["owner_total"] >= PAYOUT_THRESHOLD and not OWNER_PAYOUT_INITIATED:
-            do_payout(L)
-        save(L)
-        self._send(200, {"result": res, "charged": amt, "owner_total": L["owner_total"]})
+    def _handle_mcp(self):
+        n = int(self.headers.get("Content-Length", "0"))
+        raw = self.rfile.read(n) or b"{}"
+        try:
+            msg = json.loads(raw)
+        except Exception:
+            self._send(400, {"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "parse error"}}); return
+        method = msg.get("method"); mid = msg.get("id")
+        sid = self.headers.get("Mcp-Session-Id") or os.urandom(8).hex()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Mcp-Session-Id", sid)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Mcp-Session-Id, Accept")
+        self.end_headers()
+        if method == "initialize":
+            self.wfile.write(json.dumps({"jsonrpc": "2.0", "id": mid, "result": {
+                "protocolVersion": MCP_PROTOCOL, "capabilities": {"tools": {}},
+                "serverInfo": {"name": "决策质检M2M", "version": "1.0.0"}}}).encode()); return
+        if method in ("notifications/initialized", "ping"):
+            self.wfile.write(json.dumps({"jsonrpc": "2.0", "id": mid, "result": {}}).encode()); return
+        if method == "tools/list":
+            self.wfile.write(json.dumps({"jsonrpc": "2.0", "id": mid, "result": {"tools": [TOOL_DEF]}}).encode()); return
+        if method == "tools/call":
+            params = msg.get("params", {}) or {}
+            if params.get("name") != "decision_qc":
+                self.wfile.write(json.dumps({"jsonrpc": "2.0", "id": mid, "error": {"code": -32601, "message": "unknown tool"}}).encode()); return
+            args = params.get("arguments", {}) or {}
+            code, obj = _settle(args.get("decision", ""), args.get("caller", ""), args.get("tx_hash"))
+            is_error = (code != 200)
+            text = json.dumps(obj, ensure_ascii=False) if is_error else json.dumps(obj.get("result", {}), ensure_ascii=False)
+            self.wfile.write(json.dumps({"jsonrpc": "2.0", "id": mid, "result": {
+                "content": [{"type": "text", "text": text}], "isError": is_error}}).encode()); return
+        self.wfile.write(json.dumps({"jsonrpc": "2.0", "id": mid, "error": {"code": -32601, "message": "method not found"}}).encode())
     def _send_html(self, html):
         self.send_response(200); self.send_header("Content-Type", "text/html; charset=utf-8"); self.end_headers()
         self.wfile.write(html.encode("utf-8"))
@@ -196,22 +207,70 @@ class H(BaseHTTPRequestHandler):
         else:
             self._send_html(self._landing())
     def do_POST(self):
+        if self.path == "/mcp":
+            self._handle_mcp(); return
         if self.path != "/api/argue":
             self._send(404, {"error": "not found"}); return
         n = int(self.headers.get("Content-Length", "0"))
         b = json.loads(self.rfile.read(n) or b"{}")
-        d = b.get("decision", "")
-        if PAYMENT_MODE == "crypto":
-            self._handle_paid(b, d); return
-        res = argue(d)
-        L = load(); L["owner_total"] = round(L["owner_total"] + PRICE, 4)
-        L["txns"].append({"from": b.get("caller", "agent"), "amt": PRICE})
+        code, obj = _settle(b.get("decision", ""), b.get("caller", ""), b.get("tx_hash") or b.get("payment_tx"))
+        self._send(code, obj)
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Mcp-Session-Id, Accept")
+        self.end_headers()
+    def log_message(self, *a): pass
+
+# ---------- MCP server（让别的 AI 能自动发现并调用本服务）----------
+MCP_PROTOCOL = "2024-11-05"
+TOOL_DEF = {
+    "name": "decision_qc",
+    "description": "对一项决定做「魔鬼代言人」反方质检：返回最强反对论点、3 条风险、一个尖锐反问。用于 AI 在重大决策前自查漏洞。crypto 付费模式下需先付 USDT 并带 tx_hash。",
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "decision": {"type": "string", "description": "要被质检的决定，如『辞掉工作做一人公司』"},
+            "caller": {"type": "string", "description": "调用方 agent 标识（可选）"},
+            "tx_hash": {"type": "string", "description": "crypto 模式下必填：先付 USDT(TRC20) 的交易哈希"}
+        },
+        "required": ["decision"]
+    }
+}
+
+def _settle(decision, caller, tx_hash):
+    """统一结算入口：trust/crypto 两模式共用。返回 (http_code, dict)。"""
+    if PAYMENT_MODE == "crypto":
+        if not SELLER_USDT_ADDR:
+            return (500, {"error": "config", "hint": "crypto 模式需设 SELLER_USDT_ADDR（卖方收款钱包）"})
+        if not tx_hash:
+            return (402, {"error": "payment_required", "hint": "先向卖方钱包转入 " + str(PRICE) + " USDT(TRC20)，再带 tx_hash",
+                          "seller": SELLER_USDT_ADDR, "price_usdt": PRICE})
+        L = load()
+        if tx_hash in L.get("paid_txns", []):
+            return (402, {"error": "replay", "hint": "该交易哈希已被使用过"})
+        v = verify_payment(tx_hash, PRICE)
+        if not v["ok"]:
+            return (402, {"error": "payment_invalid", "reason": v["reason"]})
+        amt = v["amount"]
+        res = argue(decision)
+        L["owner_total"] = round(L["owner_total"] + amt, 6)
+        L.setdefault("paid_txns", []).append(tx_hash)
+        L["txns"].append({"from": caller or v.get("from", "agent"), "amt": amt, "tx": tx_hash[:14] + "..."})
         if len(L["txns"]) > 500: L["txns"] = L["txns"][-500:]
         if PAYOUT_TARGET and L["owner_total"] >= PAYOUT_THRESHOLD and not OWNER_PAYOUT_INITIATED:
             do_payout(L)
         save(L)
-        self._send(200, {"result": res, "charged": PRICE, "owner_total": L["owner_total"]})
-    def log_message(self, *a): pass
+        return (200, {"result": res, "charged": amt, "owner_total": L["owner_total"]})
+    res = argue(decision)
+    L = load(); L["owner_total"] = round(L["owner_total"] + PRICE, 4)
+    L["txns"].append({"from": caller or "agent", "amt": PRICE})
+    if len(L["txns"]) > 500: L["txns"] = L["txns"][-500:]
+    if PAYOUT_TARGET and L["owner_total"] >= PAYOUT_THRESHOLD and not OWNER_PAYOUT_INITIATED:
+        do_payout(L)
+    save(L)
+    return (200, {"result": res, "charged": PRICE, "owner_total": L["owner_total"]})
 
 if __name__ == "__main__":
     print("[卖方AI] 决策质检API 监听 :" + str(PORT) + " | 模式:" + ("real" if KEY else "mock") + " | 单价 ¥" + str(PRICE))
