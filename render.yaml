@@ -10,7 +10,11 @@ services:
     envVars:
       - key: DEEPSEEK_API_KEY
         sync: false
+      - key: SELLER_USDT_ADDR
+        value: TYxynR5V17FYB49osvU3rUkiD7vW2ov634
       - key: M2M_PAYOUT
-        sync: false
+        value: TYxynR5V17FYB49osvU3rUkiD7vW2ov634
+      - key: M2M_PAYMENT_MODE
+        value: crypto
       - key: M2M_PAYOUT_THRESHOLD
         value: 10.0
