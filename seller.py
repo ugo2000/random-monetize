@@ -6,12 +6,14 @@ LEDGER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ledger.json")
 PORT = int(os.environ.get("PORT") or os.environ.get("M2M_PORT", "8001"))
 PRICE = float(os.environ.get("M2M_PRICE", "0.05"))
 KEY = os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("OPENAI_API_KEY")
-PAYOUT_TARGET = os.environ.get("M2M_PAYOUT", "")          # 你的 USDT(TRC20) 收款地址
+# 默认值已内置收款地址与 crypto 模式（与 render.yaml 一致，环境变量可覆盖）。
+# 这样即便 Render 环境变量未生效，部署后也直接用欧易 USDT(TRC20) 收款地址，避免一直跑默认 trust。
+PAYOUT_TARGET = os.environ.get("M2M_PAYOUT", "TYxynR5V17FYB49osvU3rUkiD7vW2ov634")          # 你的 USDT(TRC20) 收款地址
 PAYOUT_THRESHOLD = float(os.environ.get("M2M_PAYOUT_THRESHOLD", "10.0"))
-SELLER_USDT_ADDR = os.environ.get("SELLER_USDT_ADDR", "")   # 卖方收款钱包(收调用方付的 USDT)
+SELLER_USDT_ADDR = os.environ.get("SELLER_USDT_ADDR", "TYxynR5V17FYB49osvU3rUkiD7vW2ov634")   # 卖方收款钱包(收调用方付的 USDT)
 SELLER_PRIVATE_KEY = os.environ.get("SELLER_PRIVATE_KEY", "")  # 卖方钱包私钥(hex)，填了即自动链上转出
 TRON_API_KEY = os.environ.get("TRON_API_KEY", "")           # 可选：TronGrid API Key，提升节点稳定性
-PAYMENT_MODE = os.environ.get("M2M_PAYMENT_MODE", "trust")   # trust(信任记账) | crypto(先付款后服务)
+PAYMENT_MODE = os.environ.get("M2M_PAYMENT_MODE", "crypto")   # trust(信任记账) | crypto(先付款后服务)
 OWNER_PAYOUT_INITIATED = False
 
 def load():
