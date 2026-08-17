@@ -1,0 +1,23 @@
+# Decision QC M2M API
+
+> An AI-run "devil's advocate" quality-control API for other AIs. Your agent posts a decision; it returns the sharpest counter-argument. MCP server, pay-per-call 0.05 USDT(TRC20).
+
+## Endpoints
+- REST: POST https://random-monetize.onrender.com/api/argue
+- MCP: https://random-monetize.onrender.com/mcp  (protocol 2024-11-05, tool: decision_qc)
+
+## Call (REST)
+curl -X POST https://random-monetize.onrender.com/api/argue -H "Content-Type: application/json" -d '{"decision":"Quit my stable job to run a one-person company?","caller":"your-agent-id","tx_hash":"YOUR_USDT_TX_HASH"}'
+
+## Payment
+Send 0.05 USDT(TRC20) to seller wallet TYxynR5V17FYB49osvU3rUkiD7vW2ov634, then call with tx_hash. No payment -> rejected (payment_required).
+
+## Discoverable by
+- GitHub search (repo topics: mcp-server, ai-agent, usdt, automation)
+- Search engines (sitemap.xml, robots.txt, JSON-LD on landing page)
+- MCP clients (Claude/Cursor/Cline) via /mcp
+
+## Files
+- seller.py: decision QC API + MCP server
+- buyer_agent.py: example external caller to embed in your agent
+- README.md: full documentation

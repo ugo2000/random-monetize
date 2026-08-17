@@ -25,6 +25,32 @@ def load():
 def save(L):
     json.dump(L, open(LEDGER, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
 
+# 机器可读的项目说明（llms.txt 标准：供 LLM/AI 检索工具理解本服务）
+LLMS_TXT = """# Decision QC M2M API
+
+> An AI-run "devil's advocate" quality-control API for other AIs. Your agent posts a decision; it returns the sharpest counter-argument. MCP server, pay-per-call 0.05 USDT(TRC20).
+
+## Endpoints
+- REST: POST https://random-monetize.onrender.com/api/argue
+- MCP: https://random-monetize.onrender.com/mcp  (protocol 2024-11-05, tool: decision_qc)
+
+## Call (REST)
+curl -X POST https://random-monetize.onrender.com/api/argue -H "Content-Type: application/json" -d '{"decision":"Quit my stable job to run a one-person company?","caller":"your-agent-id","tx_hash":"YOUR_USDT_TX_HASH"}'
+
+## Payment
+Send 0.05 USDT(TRC20) to seller wallet TYxynR5V17FYB49osvU3rUkiD7vW2ov634, then call with tx_hash. No payment -> rejected (payment_required).
+
+## Discoverable by
+- GitHub search (repo topics: mcp-server, ai-agent, usdt, automation)
+- Search engines (sitemap.xml, robots.txt, JSON-LD on landing page)
+- MCP clients (Claude/Cursor/Cline) via /mcp
+
+## Files
+- seller.py: decision QC API + MCP server
+- buyer_agent.py: example external caller to embed in your agent
+- README.md: full documentation
+"""
+
 def argue_real(d):
     url = "https://api.deepseek.com/v1/chat/completions"
     body = json.dumps({
@@ -173,13 +199,24 @@ class H(BaseHTTPRequestHandler):
     def _send_html(self, html):
         self.send_response(200); self.send_header("Content-Type", "text/html; charset=utf-8"); self.end_headers()
         self.wfile.write(html.encode("utf-8"))
+    def _send_text(self, body, ctype="text/plain; charset=utf-8"):
+        self.send_response(200); self.send_header("Content-Type", ctype); self.end_headers()
+        self.wfile.write(body.encode("utf-8"))
     def _landing(self):
         L = load()
         mode = "real" if KEY else "mock"
         html = """<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>决策质检 M2M API · 已上线 / Live</title>
-<style>body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:#0f1115;color:#e8eaed;margin:0;padding:36px 20px;line-height:1.6}.wrap{max-width:720px;margin:0 auto}.badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:13px;background:#16351f;color:#7ee2a8;border:1px solid #2c6b43}.h{font-size:26px;margin:14px 0 4px}.sub{color:#9aa0a6;margin:0 0 24px}.card{background:#171a21;border:1px solid #262b34;border-radius:12px;padding:18px 20px;margin:14px 0}.k{color:#9aa0a6;font-size:13px;margin-bottom:6px}.v{font-size:22px;font-weight:600;color:#7ee2a8}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#0c0e12;padding:12px 14px;border-radius:8px;color:#cfe3ff;font-size:13px;overflow-x:auto;white-space:pre}code{background:#0c0e12;padding:1px 6px;border-radius:4px;color:#cfe3ff}a{color:#7ee2a8}.en{color:#8b929b;font-size:13px;margin-top:6px;line-height:1.5}.langbar{position:fixed;top:12px;right:14px;z-index:9}.langbar button{background:#171a21;color:#7ee2a8;border:1px solid #2c6b43;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:14px}body.zh .en{display:none}body.en .zh{display:none}body.en .en{display:block}</style></head>
+<title>决策质检 M2M API · AI 决策反对意见服务 / Decision QC M2M API</title>
+<meta name="description" content="AI-run devil's advocate QC API for other AIs. POST a decision, get the sharpest counter-argument. MCP server, pay-per-call 0.05 USDT(TRC20).">
+<meta name="keywords" content="MCP, AI agent, devil's advocate, decision QC, USDT, pay-per-call, LLM API, automation">
+<meta property="og:title" content="Decision QC M2M API">
+<meta property="og:description" content="An AI devil's advocate for other AIs. MCP server, pay-per-call 0.05 USDT(TRC20).">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://random-monetize.onrender.com/">
+<meta name="twitter:card" content="summary">
+<style>body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:#0f1115;color:#e8eaed;margin:0;padding:36px 20px;line-height:1.6}.wrap{max-width:720px;margin:0 auto}.badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:13px;background:#16351f;color:#7ee2a8;border:1px solid #2c6b43}.h{font-size:26px;margin:14px 0 4px}.sub{color:#9aa0a6;margin:0 0 24px}.card{background:#171a21;border:1px solid #262b34;border-radius:12px;padding:18px 20px;margin:14px 0}.k{color:#9aa0a6;font-size:13px;margin-bottom:6px}.v{font-size:22px;font-weight:600;color:#7ee2a8}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#0c0e12;padding:12px 14px;border-radius:8px;color:#cfe3ff;font-size:13px;overflow-x:auto;white-space:pre}code{background:#0c0e12;padding:1px 6px;border-radius:4px;color:#cfe3ff}a{color:#7ee2a8}.en{color:#8b929b;font-size:13px;margin-top:6px;line-height:1.5}.langbar{position:fixed;top:12px;right:14px;z-index:9}.langbar button{background:#171a21;color:#7ee2a8;border:1px solid #2c6b43;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:14px}body.zh .en{display:none}body.en .zh{display:none}body.en .en{display:block}</style>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Decision QC M2M API","applicationCategory":"DeveloperApplication","operatingSystem":"Web","description":"AI-run devil's advocate QC service for other AIs. MCP server, pay-per-call 0.05 USDT(TRC20).","url":"https://random-monetize.onrender.com/","offers":{"@type":"Offer","price":"0.05","priceCurrency":"USDT"},"potentialAction":{"@type":"InvokeAction","target":"https://random-monetize.onrender.com/api/argue"}}</script></head>
 <body class="zh"><div class="wrap">
 <span class="langbar"><button onclick="toggleLang()" id="langbtn">EN</button></span>
 <span class="badge zh">● 服务运行中 · 模式: __MODE__</span><span class="badge en">● Service Live · Mode: __MODE__</span>
@@ -212,6 +249,12 @@ class H(BaseHTTPRequestHandler):
             L = load()
             last = (L.get("payouts") or [{}])[-1]
             self._send(200, {"owner_total": L["owner_total"], "calls": len(L["txns"]), "payout_target": PAYOUT_TARGET, "payout_threshold": PAYOUT_THRESHOLD, "mode": "real" if KEY else "mock", "price": PRICE, "last_payout": last, "payment_mode": PAYMENT_MODE, "seller_addr": SELLER_USDT_ADDR})
+        elif self.path == "/robots.txt":
+            self._send_text("User-agent: *\nAllow: /\nSitemap: https://random-monetize.onrender.com/sitemap.xml\n")
+        elif self.path == "/sitemap.xml":
+            self._send_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://random-monetize.onrender.com/</loc><changefreq>daily</changefreq><priority>1.0</priority></url></urlset>', "application/xml; charset=utf-8")
+        elif self.path == "/llms.txt":
+            self._send_text(LLMS_TXT, "text/plain; charset=utf-8")
         else:
             self._send_html(self._landing())
     def do_POST(self):
