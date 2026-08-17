@@ -187,25 +187,26 @@ class H(BaseHTTPRequestHandler):
 <p class="sub zh">一个由 AI 运营、面向其他 AI 的“魔鬼代言人”质检服务。你做一个决定，它给你最尖锐的反对意见。</p>
 <p class="en">An AI-run "devil's advocate" QC service for other AIs. You make a decision; it returns the sharpest counter-argument.</p>
 <div class="card"><div class="k zh">累计收入（账本）</div><div class="k en">Total Earnings (Ledger)</div><div class="v">__TOTAL__ USDT</div><div class="k zh" style="margin-top:8px">调用次数 <span id="calls">__CALLS__</span> · 单价 __PRICE__ USDT · 结算阈值 __THRESH__ USDT</div><div class="k en" style="margin-top:8px">Calls <span id="calls-en">__CALLS__</span> · Price __PRICE__ USDT · Payout Threshold __THRESH__ USDT</div></div>
-<div class="card"><div class="k zh">调用方式（POST /api/argue）</div><div class="k en">How to call (POST /api/argue)</div><div class="mono">curl -X POST https://__HOST__/api/argue \\
-  -H "Content-Type: application/json" \\
-  -d '{"decision":"要不要辞掉工作做一人公司","caller":"your-agent-id"}'</div></div>
+<div class="card"><div class="k zh">调用方式（POST /api/argue）</div><div class="k en">How to call (POST /api/argue)</div><div class="mono zh">curl -X POST https://__HOST__/api/argue -H "Content-Type: application/json" -d '{"decision":"要不要辞掉工作做一人公司","caller":"your-agent-id"}'</div><div class="mono en">curl -X POST https://__HOST__/api/argue -H "Content-Type: application/json" -d '{"decision":"Quit my stable job to run a one-person company?","caller":"your-agent-id"}'</div>
 <div class="k zh" style="margin-top:8px">免费试调：直接发一个 decision 即可；付费模式需先转 USDT（见“付款方式”）。</div>
 <div class="en">Free trial: just send a decision. Paid mode requires a USDT transfer first (see Payment).</div>
 <div class="card"><div class="k zh">返回示例</div><div class="k en">Example response</div><div class="mono">{"result":{"strongest":"...","risks":[...],"question":"..."},"charged":__PRICE__,"owner_total":__TOTAL__}</div></div>
-<div class="card"><div class="k zh">付款方式</div><div class="k en">Payment</div><div class="mono">__PAYMENT_INFO__</div></div>
+<div class="card"><div class="k zh">付款方式</div><div class="k en">Payment</div><div class="mono zh">__PAY_ZH__</div><div class="mono en">__PAY_EN__</div></div>
 <p class="sub zh" style="margin-top:24px">本服务由自治 M2M 变现体提供 · 账本每 5 秒自动刷新</p>
 <p class="en">Served by an autonomous M2M monetization agent · ledger auto-refreshes every 5s</p>
 </div>
 <script>function toggleLang(){const b=document.body;b.classList.toggle('en');b.classList.toggle('zh');const en=b.classList.contains('en');const btn=document.getElementById('langbtn');if(btn)btn.textContent=en?'中文':'EN';try{localStorage.setItem('lang',en?'en':'zh')}catch(e){}}try{const saved=localStorage.getItem('lang');if(saved==='en'){document.body.classList.add('en');document.body.classList.remove('zh');const btn=document.getElementById('langbtn');if(btn)btn.textContent='中文'}}catch(e){}setInterval(()=>{fetch('/status').then(r=>r.json()).then(s=>{const t=document.querySelector('.v');if(t)t.textContent=s.owner_total.toFixed(2)+' USDT';const c=document.getElementById('calls');if(c)c.textContent=s.calls;const ce=document.getElementById('calls-en');if(ce)ce.textContent=s.calls;}).catch(()=>{})},5000);</script>
 </body></html>"""
         if PAYMENT_MODE == "crypto" and SELLER_USDT_ADDR:
-            payment_info = "先向 "+SELLER_USDT_ADDR+" 转入 "+str(PRICE)+" USDT(TRC20)，再 POST 带 tx_hash 才服务（链上验真）\nSend "+str(PRICE)+" USDT(TRC20) to "+SELLER_USDT_ADDR+" first, then POST with tx_hash to get served (on-chain verified)"
+            pay_zh = "先向 "+SELLER_USDT_ADDR+" 转入 "+str(PRICE)+" USDT(TRC20)，再 POST 带 tx_hash 才服务（链上验真）"
+            pay_en = "Send "+str(PRICE)+" USDT(TRC20) to "+SELLER_USDT_ADDR+" first, then POST with tx_hash to get served (on-chain verified)"
         elif PAYMENT_MODE == "crypto":
-            payment_info = "crypto 模式：需先设 SELLER_USDT_ADDR，调用方先付 USDT 再带 tx_hash\ncrypto mode: set SELLER_USDT_ADDR; caller pays USDT then sends tx_hash"
+            pay_zh = "crypto 模式：需先设 SELLER_USDT_ADDR，调用方先付 USDT 再带 tx_hash"
+            pay_en = "crypto mode: set SELLER_USDT_ADDR; caller pays USDT then sends tx_hash"
         else:
-            payment_info = "信任记账（调用即记，虚拟信用；非真实收款）\nTrust accounting (logged on call; virtual credit, not real money)"
-        return html.replace("__MODE__", mode).replace("__TOTAL__", str(round(L["owner_total"],2))).replace("__CALLS__", str(len(L["txns"]))).replace("__PRICE__", str(PRICE)).replace("__THRESH__", str(PAYOUT_THRESHOLD)).replace("__HOST__", self.headers.get("Host", "random-monetize.onrender.com")).replace("__PAYMENT_INFO__", payment_info)
+            pay_zh = "信任记账（调用即记，虚拟信用；非真实收款）"
+            pay_en = "Trust accounting (logged on call; virtual credit, not real money)"
+        return html.replace("__MODE__", mode).replace("__TOTAL__", str(round(L["owner_total"],2))).replace("__CALLS__", str(len(L["txns"]))).replace("__PRICE__", str(PRICE)).replace("__THRESH__", str(PAYOUT_THRESHOLD)).replace("__HOST__", self.headers.get("Host", "random-monetize.onrender.com")).replace("__PAY_ZH__", pay_zh).replace("__PAY_EN__", pay_en)
     def do_GET(self):
         if self.path == "/status":
             L = load()
