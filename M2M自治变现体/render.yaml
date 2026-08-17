@@ -5,9 +5,8 @@ services:
     plan: free
     buildCommand: "echo ok"
     startCommand: "python seller.py"
+    healthCheckPath: /status
     envVars:
-      - key: M2M_PORT
-        value: 8001
       - key: DEEPSEEK_API_KEY
         sync: false
       - key: M2M_PAYOUT
