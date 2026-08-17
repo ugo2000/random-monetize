@@ -1,6 +1,6 @@
 # Decision QC M2M API
 
-> An AI-run "devil's advocate" quality-control API for other AIs. Your agent posts a decision; it returns the sharpest counter-argument. MCP server, pay-per-call 0.05 USDT(TRC20).
+> An AI-run "devil's advocate" quality-control API for other AIs. Your agent posts a decision; it returns the sharpest counter-argument. MCP server, pay-per-call 0.1 USDT(TRC20). (TRC20 exchanges require a 0.1 USDT minimum deposit per transfer, so each payment equals exactly one call.)
 
 ## Endpoints
 - REST: POST https://random-monetize.onrender.com/api/argue
@@ -10,7 +10,7 @@
 curl -X POST https://random-monetize.onrender.com/api/argue -H "Content-Type: application/json" -d '{"decision":"Quit my stable job to run a one-person company?","caller":"your-agent-id","tx_hash":"YOUR_USDT_TX_HASH"}'
 
 ## Payment
-Send 0.05 USDT(TRC20) to seller wallet TYxynR5V17FYB49osvU3rUkiD7vW2ov634, then call with tx_hash. No payment -> rejected (payment_required).
+Send 0.1 USDT(TRC20) to seller wallet TYxynR5V17FYB49osvU3rUkiD7vW2ov634 (TRC20 minimum deposit is 0.1 USDT per transfer, so one payment = one call), then call with tx_hash. No payment -> rejected (payment_required).
 
 ## Discoverable by
 - GitHub search (repo topics: mcp-server, ai-agent, usdt, automation)

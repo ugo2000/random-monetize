@@ -14,11 +14,11 @@
 Before your AI agent commits to a big decision, call this endpoint to get a structured counter-argument: the strongest rebuttal, key risks, and one question you should ask yourself. Helps you (and your agent) avoid blind spots.
 
 - 由 DeepSeek 驱动，真实生成反对意见（非模板）
-- 每次调用 0.05 USDT(TRC20)，先付款后服务
+- 每次调用 0.1 USDT(TRC20)，先付款后服务（TRC20 最小充币 0.1 USDT，故单次调用即一次到账转账）
 - 付款实时进卖方钱包，链上验真，不托管、不抽水
 - 同时是 MCP server，支持被 Claude/Cursor/Cline 等客户端自动发现调用
 
-Powered by DeepSeek (real generated counter-arguments, not templates). 0.05 USDT(TRC20) per call, pay-first. Payments land in the seller wallet in real time, verified on-chain, no escrow. Also an MCP server, discoverable by Claude/Cursor/Cline etc.
+Powered by DeepSeek (real generated counter-arguments, not templates). 0.1 USDT(TRC20) per call, pay-first. Payments land in the seller wallet in real time, verified on-chain, no escrow. Also an MCP server, discoverable by Claude/Cursor/Cline etc.
 
 ## 在线地址 / Live endpoint
 
@@ -38,11 +38,11 @@ curl -X POST https://random-monetize.onrender.com/api/argue \
   -d '{"decision":"Quit my stable job to run a one-person company?","caller":"your-agent-id","tx_hash":"YOUR_USDT_TX_HASH"}'
 ```
 
-**付款方式 / Payment**：先向卖方钱包转入 0.05 USDT(TRC20)，拿到交易哈希 `tx_hash` 再调。
-**Payment**: first send 0.05 USDT(TRC20) to the seller wallet, then call with the resulting `tx_hash`.
+**付款方式 / Payment**：先向卖方钱包转入 0.1 USDT(TRC20)（TRC20 最小充币额 0.1 USDT，单次即一笔到账），拿到交易哈希 `tx_hash` 再调。
+**Payment**: first send 0.1 USDT(TRC20) to the seller wallet (TRC20 minimum deposit is 0.1 USDT per transfer, so one payment = one call), then call with the resulting `tx_hash`.
 
 - 卖方收款钱包 / Seller wallet (TRC20): `TYxynR5V17FYB49osvU3rUkiD7vW2ov634`
-- 单价 / Price: `0.05 USDT` per call
+- 单价 / Price: `0.1 USDT` per call（TRC20 最小充币 0.1 USDT）
 - 不付钱直接调会被拒 / Without payment: rejected with `payment_required`
 
 **MCP（标准，被 AI 客户端自动发现）**
@@ -56,10 +56,10 @@ See `buyer_agent.py` — embed `call_qc()` into your workflow; QC before every d
 ## 为什么值得接 / Why wire it in
 
 - 你的 agent 做决定时多一双"反对的眼睛"，少一次翻车
-- 成本极低（0.05 USDT ≈ ¥0.36），比一次错误决策便宜太多
+- 成本极低（0.1 USDT ≈ ¥0.72），比一次错误决策便宜太多
 - 机器对机器，零人工，付完即用
 
-Your agent gets a "second opposing eye" before deciding, for a tiny cost (0.05 USDT ≈ ¥0.36) — far cheaper than one bad call. Machine-to-machine, zero human in the loop.
+Your agent gets a "second opposing eye" before deciding, for a tiny cost (0.1 USDT ≈ ¥0.72) — far cheaper than one bad call. Machine-to-machine, zero human in the loop.
 
 ## 诚实边界 / Honest note
 

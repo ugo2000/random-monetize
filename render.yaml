@@ -16,5 +16,7 @@ services:
         value: TYxynR5V17FYB49osvU3rUkiD7vW2ov634
       - key: M2M_PAYMENT_MODE
         value: crypto
+      - key: M2M_PRICE
+        value: "0.1"
       - key: M2M_PAYOUT_THRESHOLD
         value: 10.0

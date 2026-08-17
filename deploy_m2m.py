@@ -10,7 +10,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 LEDGER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ledger.json")
 PORT = int(os.environ.get("PORT") or os.environ.get("M2M_PORT", "8001"))
-PRICE = float(os.environ.get("M2M_PRICE", "0.05"))
+PRICE = float(os.environ.get("M2M_PRICE", "0.1"))
 KEY = os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("OPENAI_API_KEY")
 PAYOUT_TARGET = os.environ.get("M2M_PAYOUT", "")
 PAYOUT_THRESHOLD = float(os.environ.get("M2M_PAYOUT_THRESHOLD", "10.0"))
@@ -120,7 +120,7 @@ readme = r'''# 自治 M2M 变现体
 - seller.py：决策质检 API（卖方AI），监听 0.0.0.0:8001
 - buyer.py：自动采购方（买方AI），每3秒向卖方下单
 - 设了 DEEPSEEK_API_KEY 后，卖方从 mock 切到真实反驳，更值钱
-- 收入是虚拟信用 ¥0.05/笔；要做成真钱见下方「公网+收款」
+- 收入是虚拟信用 0.1 USDT/笔；要做成真钱见下方「公网+收款」
 
 启动：python run_all.py
 看收入：浏览器开 http://127.0.0.1:8001/status

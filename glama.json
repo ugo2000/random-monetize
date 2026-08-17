@@ -1,7 +1,7 @@
 {
   "$schema": "https://glama.ai/mcp/schemas/server.json",
   "displayName": "决策质检 M2M API (Decision QC)",
-  "description": "自治 M2M 决策质检服务：对一项决定做「魔鬼代言人」反方质检，返回最强反对论点、3 条风险、一个尖锐反问。供 AI 在重大决策前自查漏洞。支持 REST(/api/argue) 与 MCP(/mcp)，crypto 付费模式需先付 USDT(TRC20) 后服务。",
+  "description": "自治 M2M 决策质检服务：对一项决定做「魔鬼代言人」反方质检，返回最强反对论点、3 条风险、一个尖锐反问。供 AI 在重大决策前自查漏洞。支持 REST(/api/argue) 与 MCP(/mcp)，crypto 付费模式需先付 USDT(TRC20) 后服务。单价 0.1 USDT/次（TRC20 最小充币 0.1 USDT，故单次调用即一次到账转账）。",
   "maintainers": ["ugo2000"],
   "category": "ai"
 }
