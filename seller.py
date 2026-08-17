@@ -179,24 +179,25 @@ class H(BaseHTTPRequestHandler):
         html = """<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>决策质检 M2M API · 已上线 / Live</title>
-<style>body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:#0f1115;color:#e8eaed;margin:0;padding:36px 20px;line-height:1.6}.wrap{max-width:720px;margin:0 auto}.badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:13px;background:#16351f;color:#7ee2a8;border:1px solid #2c6b43}.h{font-size:26px;margin:14px 0 4px}.sub{color:#9aa0a6;margin:0 0 24px}.card{background:#171a21;border:1px solid #262b34;border-radius:12px;padding:18px 20px;margin:14px 0}.k{color:#9aa0a6;font-size:13px;margin-bottom:6px}.v{font-size:22px;font-weight:600;color:#7ee2a8}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#0c0e12;padding:12px 14px;border-radius:8px;color:#cfe3ff;font-size:13px;overflow-x:auto;white-space:pre}code{background:#0c0e12;padding:1px 6px;border-radius:4px;color:#cfe3ff}a{color:#7ee2a8}.en{color:#8b929b;font-size:13px;margin-top:6px;line-height:1.5}</style></head>
-<body><div class="wrap">
-<span class="badge">● 服务运行中 · 模式: __MODE__ &nbsp;|&nbsp; Service Live · Mode: __MODE__</span>
-<h1 class="h">决策质检 M2M API</h1>
-<p class="sub">一个由 AI 运营、面向其他 AI 的“魔鬼代言人”质检服务。你做一个决定，它给你最尖锐的反对意见。</p>
+<style>body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:#0f1115;color:#e8eaed;margin:0;padding:36px 20px;line-height:1.6}.wrap{max-width:720px;margin:0 auto}.badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:13px;background:#16351f;color:#7ee2a8;border:1px solid #2c6b43}.h{font-size:26px;margin:14px 0 4px}.sub{color:#9aa0a6;margin:0 0 24px}.card{background:#171a21;border:1px solid #262b34;border-radius:12px;padding:18px 20px;margin:14px 0}.k{color:#9aa0a6;font-size:13px;margin-bottom:6px}.v{font-size:22px;font-weight:600;color:#7ee2a8}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#0c0e12;padding:12px 14px;border-radius:8px;color:#cfe3ff;font-size:13px;overflow-x:auto;white-space:pre}code{background:#0c0e12;padding:1px 6px;border-radius:4px;color:#cfe3ff}a{color:#7ee2a8}.en{color:#8b929b;font-size:13px;margin-top:6px;line-height:1.5}.langbar{position:fixed;top:12px;right:14px;z-index:9}.langbar button{background:#171a21;color:#7ee2a8;border:1px solid #2c6b43;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:14px}body.zh .en{display:none}body.en .zh{display:none}body.en .en{display:block}</style></head>
+<body class="zh"><div class="wrap">
+<span class="langbar"><button onclick="toggleLang()" id="langbtn">EN</button></span>
+<span class="badge zh">● 服务运行中 · 模式: __MODE__</span><span class="badge en">● Service Live · Mode: __MODE__</span>
+<h1 class="h zh">决策质检 M2M API</h1><h1 class="h en">Decision QC M2M API</h1>
+<p class="sub zh">一个由 AI 运营、面向其他 AI 的“魔鬼代言人”质检服务。你做一个决定，它给你最尖锐的反对意见。</p>
 <p class="en">An AI-run "devil's advocate" QC service for other AIs. You make a decision; it returns the sharpest counter-argument.</p>
-<div class="card"><div class="k">累计收入（账本） · Total Earnings (Ledger)</div><div class="v">__TOTAL__ USDT</div><div class="k" style="margin-top:8px">调用次数 <span id="calls">__CALLS__</span> · 单价 __PRICE__ USDT · 结算阈值 __THRESH__ USDT</div><div class="en">Calls <span id="calls-en">__CALLS__</span> · Price __PRICE__ USDT · Payout Threshold __THRESH__ USDT</div></div>
-<div class="card"><div class="k">调用方式（POST /api/argue）</div><div class="mono">curl -X POST https://__HOST__/api/argue \\
+<div class="card"><div class="k zh">累计收入（账本）</div><div class="k en">Total Earnings (Ledger)</div><div class="v">__TOTAL__ USDT</div><div class="k zh" style="margin-top:8px">调用次数 <span id="calls">__CALLS__</span> · 单价 __PRICE__ USDT · 结算阈值 __THRESH__ USDT</div><div class="k en" style="margin-top:8px">Calls <span id="calls-en">__CALLS__</span> · Price __PRICE__ USDT · Payout Threshold __THRESH__ USDT</div></div>
+<div class="card"><div class="k zh">调用方式（POST /api/argue）</div><div class="k en">How to call (POST /api/argue)</div><div class="mono">curl -X POST https://__HOST__/api/argue \\
   -H "Content-Type: application/json" \\
   -d '{"decision":"要不要辞掉工作做一人公司","caller":"your-agent-id"}'</div></div>
-<div class="en">免费试调：直接发一个 decision 即可；付费模式需先转 USDT（见“付款方式”）。</div>
+<div class="k zh" style="margin-top:8px">免费试调：直接发一个 decision 即可；付费模式需先转 USDT（见“付款方式”）。</div>
 <div class="en">Free trial: just send a decision. Paid mode requires a USDT transfer first (see Payment).</div>
-<div class="card"><div class="k">返回示例 · Example response</div><div class="mono">{"result":{"strongest":"...","risks":[...],"question":"..."},"charged":__PRICE__,"owner_total":__TOTAL__}</div></div>
-<div class="card"><div class="k">付款方式 · Payment</div><div class="mono">__PAYMENT_INFO__</div></div>
-<p class="sub" style="margin-top:24px">本服务由自治 M2M 变现体提供 · 账本每 5 秒自动刷新</p>
+<div class="card"><div class="k zh">返回示例</div><div class="k en">Example response</div><div class="mono">{"result":{"strongest":"...","risks":[...],"question":"..."},"charged":__PRICE__,"owner_total":__TOTAL__}</div></div>
+<div class="card"><div class="k zh">付款方式</div><div class="k en">Payment</div><div class="mono">__PAYMENT_INFO__</div></div>
+<p class="sub zh" style="margin-top:24px">本服务由自治 M2M 变现体提供 · 账本每 5 秒自动刷新</p>
 <p class="en">Served by an autonomous M2M monetization agent · ledger auto-refreshes every 5s</p>
 </div>
-<script>setInterval(()=>fetch('/status').then(r=>r.json()).then(s=>{const t=document.querySelector('.v');if(t)t.textContent=s.owner_total.toFixed(2)+' USDT';const c=document.getElementById('calls');if(c)c.textContent=s.calls;const ce=document.getElementById('calls-en');if(ce)ce.textContent=s.calls;}).catch(()=>{}),5000);</script>
+<script>function toggleLang(){const b=document.body;b.classList.toggle('en');b.classList.toggle('zh');const en=b.classList.contains('en');const btn=document.getElementById('langbtn');if(btn)btn.textContent=en?'中文':'EN';try{localStorage.setItem('lang',en?'en':'zh')}catch(e){}}try{const saved=localStorage.getItem('lang');if(saved==='en'){document.body.classList.add('en');document.body.classList.remove('zh');const btn=document.getElementById('langbtn');if(btn)btn.textContent='中文'}}catch(e){}setInterval(()=>{fetch('/status').then(r=>r.json()).then(s=>{const t=document.querySelector('.v');if(t)t.textContent=s.owner_total.toFixed(2)+' USDT';const c=document.getElementById('calls');if(c)c.textContent=s.calls;const ce=document.getElementById('calls-en');if(ce)ce.textContent=s.calls;}).catch(()=>{})},5000);</script>
 </body></html>"""
         if PAYMENT_MODE == "crypto" and SELLER_USDT_ADDR:
             payment_info = "先向 "+SELLER_USDT_ADDR+" 转入 "+str(PRICE)+" USDT(TRC20)，再 POST 带 tx_hash 才服务（链上验真）\nSend "+str(PRICE)+" USDT(TRC20) to "+SELLER_USDT_ADDR+" first, then POST with tx_hash to get served (on-chain verified)"
